@@ -166,7 +166,7 @@ parser.add_argument(
 parser.add_argument(
     '--load', '-l', type=str, required=False, metavar='PATH', default='',
     help='Load network from file before training or for testing')
-parser.add_argument(
+parser.add_argument(    
     '--save', '-s', type=str, required=False, metavar='PATH', default='',
     help='File in which to save best network')
 parser.add_argument(

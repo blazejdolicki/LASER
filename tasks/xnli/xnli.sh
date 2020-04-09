@@ -21,7 +21,7 @@ fi
 
 xnli="XNLI-1.0"
 xnli_mt="XNLI-MT-1.0"
-xnli_http="https://s3.amazonaws.com/xnli"
+xnli_http="https://www.nyu.edu/projects/bowman/xnli"
 mnli_http="https://www.nyu.edu/projects/bowman/multinli/multinli_1.0.zip"
 
 languages=("en" "fr" "es" "de" "el" "bg" "ru" "tr" "ar" "vi" "th" "zh" "hi" "sw" "ur")
@@ -82,6 +82,7 @@ ExtractXNLI_MT () {
   if [ ! -d ${xnli_mt}/multinli ] ; then
       echo " - Downloading "
       wget -q  ${xnli_http}/${xnli_mt}.zip
+      echo "${xnli_http}/${xnli_mt}.zip"
       echo " - unzip "
       unzip -q ${xnli_mt}.zip
       /bin/rm -rf __MACOS ${xnli_mt}.zip
@@ -139,7 +140,8 @@ export PYTHONPATH="$PYTHONPATH:$LASER/tools-external/jieba"
 python3 xnli.py --data_dir ${edir} --lang ${languages[@]} --bpe_codes ${bpe_codes} --encoder ${encoder} --verbose
 
 #for fr in 0.1 0.2 0.3 0.4 0.5 0.6 0.7 0.8 0.9 ; do
-for fr in 0.6 0.7 0.8 0.9 ; do
+# for fr in 0.6 0.7 0.8 0.9 ; do
+for fr in 1.0 ; do
 echo -e "\nTraining the classifier (see ${edir}/xnli.fract${fr}.log)"
 python3 ${LASER}/source/nli.py -b ${edir} \
     --train xnli.train.%s.enc.en --train-labels xnli.train.cl.en \
@@ -150,5 +152,6 @@ python3 ${LASER}/source/nli.py -b ${edir} \
     --cross-lingual \
     --fraction $fr \
     --save-outputs ${edir}/xnli.fract${fr}.outputs \
-    --gpu 1 > ${edir}/xnli.fract${fr}.log
+    --gpu 0 
+    # > ${edir}/xnli.fract${fr}.log
 done

@@ -98,6 +98,7 @@ class Net(nn.Module):
                 X = X.cuda()
                 Y = Y.cuda()
             outputs = self.mlp(X)
+            # here the predictions are returned, you will need this later
             _, predicted = torch.max(outputs.data, 1)
             total += Y.size(0)
             correct += (predicted == Y).int().sum()

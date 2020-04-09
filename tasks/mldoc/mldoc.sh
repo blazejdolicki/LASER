@@ -38,9 +38,21 @@ edir="embed"
 #
 ###################################################################
 
+```
+  ExtractMLdoc:
+
+  Take the original MLDOC document. It seems to be delimited by tabs where in each line the second value is the label
+  and the third is the corresponding news article. It takes the labels, replaces some values and saves them in a separate file.
+  Afterwards, it takes the articles, replaces some values and saves in a separate file.
+
+```
+
 ExtractMLdoc () {
+  # input file name
   ifname=$1
+  # output file name
   ofname=$2
+  # language
   lang=$3
   if [ ! -f ${ifname}.${lang} ] ; then
     echo "Please install the MLDoc corpus first"
@@ -55,7 +67,19 @@ ExtractMLdoc () {
   fi
   if [ ! -f ${ofname}.txt.${lang} ] ; then
     echo " - extract texts from ${ifname}.${lang}"
-    # remove text which is not useful for classification
+    # remove text which is not useful for classification 
+    '''
+      `cut` command cuts a section from each line and writes it to a file https://shapeshed.com/unix-cut/ 
+      -d specifies the delimiter (seems to be a tab in this case)
+      -f after splitting by delimeter we have a list, this parameter selects the nth element from that list
+
+      `sed` command is can various uses, but here it just replaces one pattern with another https://www.geeksforgeeks.org/sed-command-in-linux-unix-with-examples/
+      The "s" specifies the substitution operation. The "g" specifies the sed command to replace all occurences of the string in the line.
+      -e just binds multiple commands together
+      So here basically "Co ." is replaced with "Co.", "Inc ." with "Inc." and "the "Reteurs Limited.." with nothing (its removed).
+
+      At the end everything is saved into a file.
+    '''
     cut -d'	' -f2 ${ifname}.${lang} \
      | sed -e 's/ Co \./ Co./g' -e s'/ Inc \. / Inc. /g' \
            -e 's/([cC]) Reuters Limited 199[0-9]\.//g' \
