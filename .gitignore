@@ -8,5 +8,6 @@ tasks/bucc/downloaded
 tasks/similarity/dev/
 tasks/xnli/XNLI-1.0*
 tasks/xnli/multinli_1.0*
+tasks/cls/data
 .??*swp
 .idea
