@@ -23,8 +23,8 @@ fi
 # general config
 mldir="data/cls-acl10-unprocessed"	# raw texts of MLdoc
 edir="embed"	# normalized texts and embeddings
-languages=('en' 'de' 'fr' 'jp')
-# languages=('jp')
+# languages=('en' 'de' 'fr' 'jp')
+languages=('en' 'de')
 # encoder
 model_dir="${LASER}/models"
 encoder="${model_dir}/bilstm.93langs.2018-12-26.pt"
@@ -35,6 +35,10 @@ bpe_codes="${model_dir}/93langs.fcodes"
 # Download raw data and convert to txt files (to make them compatible with processing)
 #
 ###################################################################
+
+echo "Start time:"
+TZ=CET date
+echo ""
 
 # if data wasn't downloaded before
 if [ ! -d "data" ] ; then
@@ -76,11 +80,15 @@ ExtractCLS () {
   if [ ! -f ${ofname}.lbl.${lang} ] ; then
     echo " - extract labels from ${ifname}"
     cut -d$'\t' -f1 ${ifname} > ${ofname}.lbl.${lang}
+  else
+    echo "Labels from ${ifname} already extracted"
   fi
   if [ ! -f ${ofname}.txt.${lang} ] ; then
     echo " - extract texts from ${ifname}"
     cut -d$'\t' -f2 ${ifname} \
       > ${ofname}.txt.${lang}
+  else
+    echo "Texts from ${ifname} already extracted"
   fi
 }
 
@@ -98,8 +106,8 @@ done
 
 # Embed all data
 echo -e "\nExtracting CLS data"
-#ExtractMLdoc ${mldir}/mldoc.train1000 ${edir}/mldoc.train1000 "en"
-for part in "train" "test" ; do
+
+for part in "train" "dev" "test" ; do
   for l in ${languages[@]} ; do
     ExtractCLS "${mldir}/${l}/books/${part}.txt" ${edir}/${part} ${l}
   done
@@ -109,15 +117,15 @@ MECAB="${LASER}/tools-external/mecab"
 export LD_LIBRARY_PATH="${MECAB}/lib:${LD_LIBRARY_PATH}"
 python3 cls.py --data_dir ${edir} --lang ${languages[@]} --bpe_codes ${bpe_codes} --encoder ${encoder}
 
-# # CLS classifier parameters
-# nb_cl=2
-# N=500
-# lr=0.001
-# wd=0.0
-# nhid="10 8"
-# drop=0.2
-# seed=1
-# bsize=12
+# CLS classifier parameters
+nb_cl=2
+N=500
+lr=0.001
+wd=0.0
+nhid="10 8"
+drop=0.2
+seed=1
+bsize=12
 
 # echo -e "\nTraining CLS classifier (log files in ${edir})"
 # #for ltrn in "en" ; do
@@ -130,6 +138,8 @@ python3 cls.py --data_dir ${edir} --lang ${languages[@]} --bpe_codes ${bpe_codes
 #       --gpu 0 --base-dir ${edir} \
 #       --train train.enc.${ltrn} \
 #       --train-labels train.lbl.${ltrn} \
+#       --dev dev.enc.${ldev} \
+#       --dev-labels dev.lbl.${ldev} \
 #       --test test.enc \
 #       --test-labels test.lbl \
 #       --nb-classes ${nb_cl} \

@@ -17,17 +17,50 @@ DATA_DIR = 'data/cls-acl10-unprocessed'
 for lang in langs:
     for part in ['train','test']:
         FILE_DIR = f"{DATA_DIR}/{lang}/{category}/{part}"
-        print(f'Creating file {FILE_DIR}.txt')
         tree = ET.parse(f'{FILE_DIR}.review')
         root = tree.getroot()
-        with open(f"{FILE_DIR}.txt","w",encoding='utf-8') as f:
-            for review in root:
-                label = get_label(review[1].text)
-                try:
-                    text = review[text_index[lang]].text.replace("\n","")
-                except:
-                    # one of the Japanese reviews is empty setting it to "" was causing errors, so instead we take text from the title
-                    text = review[text_index[lang]+1].text.replace("\n","")
-                    print("No text in <text>")
-                    print("Alternative text:",text)
-                f.write("{}\t{}\n".format(label,text))
+        if part=='train':
+            file_size = len(root)
+            print("Use last 10% of training set as dev set")
+            train_dev_split = int(file_size*0.9)
+
+            print(f'Creating file {FILE_DIR}.txt')
+            with open(f"{FILE_DIR}.txt","w",encoding='utf-8') as f:
+                for review in root[:train_dev_split]:
+                    label = get_label(review[1].text)
+                    try:
+                        text = review[text_index[lang]].text.replace("\n","")
+                    except:
+                        # one of the Japanese reviews is empty setting it to "" was causing errors, so instead we take text from the title
+                        text = review[text_index[lang]+1].text.replace("\n","")
+                        print("No text in <text>")
+                        print("Alternative text:",text)
+                    f.write("{}\t{}\n".format(label,text))
+            
+            part = 'dev'
+            FILE_DIR = f"{DATA_DIR}/{lang}/{category}/{part}"
+            print(f'Creating file {FILE_DIR}.txt')
+            with open(f"{FILE_DIR}.txt","w",encoding='utf-8') as f:
+                for review in root[train_dev_split:]:
+                    label = get_label(review[1].text)
+                    try:
+                        text = review[text_index[lang]].text.replace("\n","")
+                    except:
+                        # one of the Japanese reviews is empty setting it to "" was causing errors, so instead we take text from the title
+                        text = review[text_index[lang]+1].text.replace("\n","")
+                        print("No text in <text>")
+                        print("Alternative text:",text)
+                    f.write("{}\t{}\n".format(label,text))
+        else:
+            print(f'Creating file {FILE_DIR}.txt')
+            with open(f"{FILE_DIR}.txt","w",encoding='utf-8') as f:
+                for review in root:
+                    label = get_label(review[1].text)
+                    try:
+                        text = review[text_index[lang]].text.replace("\n","")
+                    except:
+                        # one of the Japanese reviews is empty setting it to "" was causing errors, so instead we take text from the title
+                        text = review[text_index[lang]+1].text.replace("\n","")
+                        print("No text in <text>")
+                        print("Alternative text:",text)
+                    f.write("{}\t{}\n".format(label,text))

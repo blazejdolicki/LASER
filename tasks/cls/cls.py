@@ -67,7 +67,7 @@ parser.add_argument(
     help='Detailed output')
 args = parser.parse_args()
 
-print('LASER: calculate embeddings for CLS')
+print('\nLASER: calculate embeddings for CLS')
 
 if not os.path.exists(args.data_dir):
     os.mkdir(args.data_dir)
@@ -75,8 +75,7 @@ if not os.path.exists(args.data_dir):
 enc = EncodeLoad(args)
 
 print('\nProcessing:')
-# TODO add 'train' back
-for part in ['test']:
+for part in ['train','dev','test']:
     # for lang in "en" if part == 'train1000' else args.lang:
     for lang in args.lang:
         cfname = os.path.join(args.data_dir, part)
