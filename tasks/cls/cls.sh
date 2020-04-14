@@ -119,36 +119,78 @@ python3 cls.py --data_dir ${edir} --lang ${languages[@]} --bpe_codes ${bpe_codes
 
 # CLS classifier parameters
 nb_cl=2
-N=500
-lr=0.001
+Ns=(100 200 500)
+lrs=(0.01 0.001)
 wd=0.0
-nhid="10 8"
-drop=0.2
+nhids=("10 8" "256 64")
+drops=(0.1 0.2 0.3)
 seed=1
-bsize=12
+bsizes=(12 18)
 
-# echo -e "\nTraining CLS classifier (log files in ${edir})"
-# #for ltrn in "en" ; do
-# for ltrn in ${languages[@]} ; do
-#   ldev=${ltrn}
-#   lf="${edir}/cls.${ltrn}-${ldev}.log"
-#   echo " - train on ${ltrn}, dev on ${ldev}"
-#   if [ ! -f ${lf} ] ; then
-#     python3 ${LASER}/source/sent_classif.py \
-#       --gpu 0 --base-dir ${edir} \
-#       --train train.enc.${ltrn} \
-#       --train-labels train.lbl.${ltrn} \
-#       --dev dev.enc.${ldev} \
-#       --dev-labels dev.lbl.${ldev} \
-#       --test test.enc \
-#       --test-labels test.lbl \
-#       --nb-classes ${nb_cl} \
-#       --nhid ${nhid[@]} --dropout ${drop} --bsize ${bsize} \
-#       --seed ${seed} --lr ${lr} --wdecay ${wd} --nepoch ${N} \
-#       --lang ${languages[@]} \
-#       > ${lf}
-#   fi
-# done
+echo -e "\nTraining CLS classifier (log files in ${edir})"
+
+hp_tuning=true
+if [ "$hp_tuning" = true ] ; then
+  for ltrn in "en" ; do
+  # TODO uncomment later
+  # for ltrn in ${languages[@]} ; do
+    ldev=${ltrn}
+    echo " - train on ${ltrn}, dev on ${ldev}"
+    for N in ${Ns[@]} ; do
+      for lr in ${lrs[@]} ; do
+        for i in ${!nhids[@]} ; do
+          nhid=${nhids[i]}
+          for drop in ${drops[@]} ; do
+            for bsize in ${bsizes[@]} ; do
+              lf="${edir}/cls.${ltrn}-${ldev}_N_${N}_lr_${lr}_nhid_${i}_drop_${drop}_bsize_${bsize}.log"
+              echo "Starting ${lf}"
+              # TODO uncomment later
+              # if [ ! -f ${lf} ] ; then
+                python3 ${LASER}/source/sent_classif.py \
+                  --gpu 0 --base-dir ${edir} \
+                  --train train.enc.${ltrn} \
+                  --train-labels train.lbl.${ltrn} \
+                  --dev dev.enc.${ldev} \
+                  --dev-labels dev.lbl.${ldev} \
+                  --test test.enc \
+                  --test-labels test.lbl \
+                  --nb-classes ${nb_cl} \
+                  --nhid ${nhid[@]} --dropout ${drop} --bsize ${bsize} \
+                  --seed ${seed} --lr ${lr} --wdecay ${wd} --nepoch ${N} \
+                  --lang ${languages[@]} \
+                  > ${lf}
+              # fi
+            done
+          done
+        done
+      done
+    done
+  done
+else
+  for ltrn in "en" ; do
+  # for ltrn in ${languages[@]} ; do
+    ldev=${ltrn}
+    lf="${edir}/cls.${ltrn}-${ldev}.log"
+    echo " - train on ${ltrn}, dev on ${ldev}"
+    if [ ! -f ${lf} ] ; then
+      python3 ${LASER}/source/sent_classif.py \
+        --gpu 0 --base-dir ${edir} \
+        --train train.enc.${ltrn} \
+        --train-labels train.lbl.${ltrn} \
+        --dev dev.enc.${ldev} \
+        --dev-labels dev.lbl.${ldev} \
+        --test test.enc \
+        --test-labels test.lbl \
+        --nb-classes ${nb_cl} \
+        --nhid ${nhid[@]} --dropout ${drop} --bsize ${bsize} \
+        --seed ${seed} --lr ${lr} --wdecay ${wd} --nepoch ${N} \
+        --lang ${languages[@]} \
+        > ${lf}
+    fi
+  done
+fi
+
+
 
 # # display results
 # echo -e "\nAccuracy matrix:"

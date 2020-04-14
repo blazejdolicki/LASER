@@ -107,9 +107,10 @@ class Net(nn.Module):
 
         print(' | {:4s}: {:5.2f}%'
                          .format(name, 100.0 * correct.float() / total), end='')
-        print(' | classes:', end='')
-        for i in range(nlbl):
-            print(' {:5.2f}'.format(100.0 * corr[i] / total), end='')
+        # TODO uncomment later, for now i don't want to see classes
+        # print(' | classes:', end='')
+        # for i in range(nlbl):
+        #     print(' {:5.2f}'.format(100.0 * corr[i] / total), end='')
 
         return correct, total
 
@@ -244,31 +245,33 @@ for epoch in range(args.nepoch):
         loss_epoch += loss.item()
 
     print(' | loss {:e}'.format(loss_epoch), end='')
-
+    corr_train, nbex_train = net.TestCorpus(train_loader, 'Train')
     corr, nbex = net.TestCorpus(dev_loader, 'Dev')
     if corr >= corr_best:
         print(' | saved')
         corr_best = corr
+        corr_train_best = corr_train
         net_best = copy.deepcopy(net)
     else:
         print('')
 
-
 if 'net_best' in globals():
     if args.save != '':
         torch.save(net_best.cpu(), args.save)
-    print('Best Dev: {:d} = {:5.2f}%'
-          .format(corr_best, 100.0 * corr_best.float() / nbex))
+    print("# epochs: {}, lr: {}, nhid: {}, drop: {}, bsize: {}"
+          .format(args.nepoch,args.lr, args.nhid, args.dropout, args.bsize))
+    print('Best dev - Dev {:5.2f}% Train {:5.2f}%'
+          .format(corr_best, 100.0 * corr_best.float() / nbex, 100.0 * corr_train_best.float() / nbex_train))
 
     if args.gpu >= 0:
         net_best = net_best.cuda()
-
-    # test on (several) languages
-    for l in args.lang:
-        test_loader = LoadData(args.base_dir, args.test + '.' + l,
-                               args.test_labels + '.' + l,
-                               dim=args.dim, bsize=args.bsize,
-                               shuffle=False, quiet=True)
-        print('Ep best | Eval Test lang {:s}'.format(l), end='')
-        net_best.TestCorpus(test_loader, 'Test')
-        print('')
+# TODO uncomment later, for now i dont want to see test set
+#     # test on (several) languages
+#     for l in args.lang:
+#         test_loader = LoadData(args.base_dir, args.test + '.' + l,
+#                                args.test_labels + '.' + l,
+#                                dim=args.dim, bsize=args.bsize,
+#                                shuffle=False, quiet=True)
+#         print('Ep best | Eval Test lang {:s}'.format(l), end='')
+#         net_best.TestCorpus(test_loader, 'Test')
+#         print('')
