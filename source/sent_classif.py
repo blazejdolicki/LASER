@@ -91,7 +91,9 @@ class Net(nn.Module):
         total = 0
         self.mlp.train(mode=False)
         corr = np.zeros(nlbl, dtype=np.int32)
+
         for data in dset:
+            print(data.shape)
             X, Y = data
             Y = Y.long()
             if self.gpu >= 0:
@@ -245,12 +247,12 @@ for epoch in range(args.nepoch):
         loss_epoch += loss.item()
 
     print(' | loss {:e}'.format(loss_epoch), end='')
-    corr_train, nbex_train = net.TestCorpus(train_loader, 'Train')
+    # corr_train, nbex_train = net.TestCorpus(train_loader, 'Train')
     corr, nbex = net.TestCorpus(dev_loader, 'Dev')
     if corr >= corr_best:
         print(' | saved')
         corr_best = corr
-        corr_train_best = corr_train
+        # corr_train_best = corr_train
         net_best = copy.deepcopy(net)
     else:
         print('')
@@ -260,8 +262,8 @@ if 'net_best' in globals():
         torch.save(net_best.cpu(), args.save)
     print("# epochs: {}, lr: {}, nhid: {}, drop: {}, bsize: {}"
           .format(args.nepoch,args.lr, args.nhid, args.dropout, args.bsize))
-    print('Best dev - Dev {:5.2f}% Train {:5.2f}%'
-          .format(100.0 * corr_best.float() / nbex, 100.0 * corr_train_best.float() / nbex_train))
+    # print('Best dev - Dev {:5.2f}% Train {:5.2f}%'
+    #       .format(100.0 * corr_best.float() / nbex, 100.0 * corr_train_best.float() / nbex_train))
 
     if args.gpu >= 0:
         net_best = net_best.cuda()
