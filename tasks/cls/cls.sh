@@ -117,20 +117,23 @@ MECAB="${LASER}/tools-external/mecab"
 export LD_LIBRARY_PATH="${MECAB}/lib:${LD_LIBRARY_PATH}"
 python3 cls.py --data_dir ${edir} --lang ${languages[@]} --bpe_codes ${bpe_codes} --encoder ${encoder}
 
-# CLS classifier parameters
-nb_cl=2
-Ns=(100 200 500)
-lrs=(0.01 0.001)
-wd=0.0
-nhids=("10 8" "256 64")
-drops=(0.1 0.2 0.3)
-seed=1
-bsizes=(12 18)
+
 
 echo -e "\nTraining CLS classifier (log files in ${edir})"
 
-hp_tuning=true
+hp_tuning=false
 if [ "$hp_tuning" = true ] ; then
+
+  # CLS classifier parameters
+  nb_cl=2
+  Ns=(100 200 500)
+  lrs=(0.01 0.001)
+  wd=0.0
+  nhids=("10 8" "256 64")
+  drops=(0.1 0.2 0.3)
+  seed=1
+  bsizes=(12 18)
+
   for ltrn in "en" ; do
   # TODO uncomment later
   # for ltrn in ${languages[@]} ; do
@@ -167,12 +170,24 @@ if [ "$hp_tuning" = true ] ; then
     done
   done
 else
-  for ltrn in "en" ; do
-  # for ltrn in ${languages[@]} ; do
+
+  # CLS classifier parameters
+  nb_cl=2
+  N=500
+  lr=0.001
+  wd=0.0
+  nhid="256 64"
+  drop=0.3
+  seed=1
+  bsize=18
+
+  # for ltrn in "en" ; do
+  for ltrn in ${languages[@]} ; do
     ldev=${ltrn}
     lf="${edir}/cls.${ltrn}-${ldev}.log"
     echo " - train on ${ltrn}, dev on ${ldev}"
-    if [ ! -f ${lf} ] ; then
+    echo "Starting ${lf}"
+    # if [ ! -f ${lf} ] ; then
       python3 ${LASER}/source/sent_classif.py \
         --gpu 0 --base-dir ${edir} \
         --train train.enc.${ltrn} \
@@ -186,24 +201,28 @@ else
         --seed ${seed} --lr ${lr} --wdecay ${wd} --nepoch ${N} \
         --lang ${languages[@]} \
         > ${lf}
-    fi
+
+        
+    # fi
+  done
+
+  # # display results
+  echo -e "\nAccuracy matrix:"
+  echo -n "Train "
+  for l1 in ${languages[@]} ; do
+    printf "    %2s " ${l1}
+  done
+  echo ""
+  for l1 in ${languages[@]} ; do
+    lf="${edir}/cls.${l1}-${l1}.log"
+    echo -n " ${l1}:  "
+    for l2 in ${languages[@]} ; do
+      grep "Test lang ${l2}" $lf | sed -e 's/%//' | awk '{printf("  %5.2f", $10)}'
+    done
+    echo ""
   done
 fi
 
 
 
-# # display results
-# echo -e "\nAccuracy matrix:"
-# echo -n "Train "
-# for l1 in ${languages[@]} ; do
-#   printf "    %2s " ${l1}
-# done
-# echo ""
-# for l1 in ${languages[@]} ; do
-#   lf="${edir}/mldoc.${l1}-${l1}.log"
-#   echo -n " ${l1}:  "
-#   for l2 in ${languages[@]} ; do
-#     grep "Test lang ${l2}" $lf | sed -e 's/%//' | awk '{printf("  %5.2f", $10)}'
-#   done
-#   echo ""
-# done
+

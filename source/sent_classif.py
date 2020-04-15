@@ -261,7 +261,7 @@ if 'net_best' in globals():
     print("# epochs: {}, lr: {}, nhid: {}, drop: {}, bsize: {}"
           .format(args.nepoch,args.lr, args.nhid, args.dropout, args.bsize))
     print('Best dev - Dev {:5.2f}% Train {:5.2f}%'
-          .format(corr_best, 100.0 * corr_best.float() / nbex, 100.0 * corr_train_best.float() / nbex_train))
+          .format(100.0 * corr_best.float() / nbex, 100.0 * corr_train_best.float() / nbex_train))
 
     if args.gpu >= 0:
         net_best = net_best.cuda()
