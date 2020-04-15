@@ -89,23 +89,29 @@ class Net(nn.Module):
     def TestCorpus(self, dset, name=' Dev', nlbl=4):
         correct = 0
         total = 0
+        all_predicted = torch.Tensor().long()
         self.mlp.train(mode=False)
         corr = np.zeros(nlbl, dtype=np.int32)
 
+        # iterate through batches - dset is a DataLoader, data is a 2-element list. 
+        # First element is a (12,1024) tensor (12 batches each with sentence embedding of 1024 length)
+        # Second element is a (12,1) tensor with corresponding labels
         for data in dset:
-            print(data.shape)
             X, Y = data
             Y = Y.long()
             if self.gpu >= 0:
                 X = X.cuda()
                 Y = Y.cuda()
             outputs = self.mlp(X)
-            # here the predictions are returned, you will need this later
             _, predicted = torch.max(outputs.data, 1)
+            
             total += Y.size(0)
             correct += (predicted == Y).int().sum()
             for i in range(nlbl):
                 corr[i] += (predicted == i).int().sum()
+
+            # add batch predictions to previous predictions
+            all_predicted = torch.cat((all_predicted, predicted.cpu()), 0)
 
         print(' | {:4s}: {:5.2f}%'
                          .format(name, 100.0 * correct.float() / total), end='')
@@ -114,7 +120,31 @@ class Net(nn.Module):
         # for i in range(nlbl):
         #     print(' {:5.2f}'.format(100.0 * corr[i] / total), end='')
 
-        return correct, total
+        return correct, total, all_predicted
+
+    def get_labels(self, dset):
+        all_predicted = torch.Tensor().long()
+        all_y = torch.Tensor().long()
+        self.mlp.train(mode=False)
+
+        # iterate through batches - dset is a DataLoader, data is a 2-element list. 
+        # First element is a (12,1024) tensor (12 batches each with sentence embedding of 1024 length)
+        # Second element is a (12,1) tensor with corresponding labels
+        for data in dset:
+            X, Y = data
+            Y = Y.long()
+            if self.gpu >= 0:
+                X = X.cuda()
+                Y = Y.cuda()
+            outputs = self.mlp(X)
+            _, predicted = torch.max(outputs.data, 1)
+            
+
+            # add batch predictions to previous predictions
+            all_predicted = torch.cat((all_predicted, predicted.cpu()), 0)
+            all_y = torch.cat((all_y, Y.cpu()), 0)
+
+        return all_predicted, all_y
 
 
 ################################################
@@ -183,6 +213,11 @@ parser.add_argument(
 parser.add_argument(
     '--gpu', '-g', type=int, default=-1, metavar='INT',
     help="GPU id (-1 for CPU)")
+
+parser.add_argument(
+    '--create_labels', '-l', action='store_true',
+    help="Whether to create labels (true) or just train and evaluate (false)")
+
 args = parser.parse_args()
 
 print(' - base directory: {}'.format(args.base_dir))
@@ -247,8 +282,8 @@ for epoch in range(args.nepoch):
         loss_epoch += loss.item()
 
     print(' | loss {:e}'.format(loss_epoch), end='')
-    # corr_train, nbex_train = net.TestCorpus(train_loader, 'Train')
-    corr, nbex = net.TestCorpus(dev_loader, 'Dev')
+    # corr_train, nbex_train, _ = net.TestCorpus(train_loader, 'Train')
+    corr, nbex, _ = net.TestCorpus(dev_loader, 'Dev')
     if corr >= corr_best:
         print(' | saved')
         corr_best = corr
@@ -267,13 +302,32 @@ if 'net_best' in globals():
 
     if args.gpu >= 0:
         net_best = net_best.cuda()
-# TODO comment for finetuning because then we dont want to see the test set
-    # test on (several) languages
-    for l in args.lang:
-        test_loader = LoadData(args.base_dir, args.test + '.' + l,
-                               args.test_labels + '.' + l,
-                               dim=args.dim, bsize=args.bsize,
-                               shuffle=False, quiet=True)
-        print('Ep best | Eval Test lang {:s}'.format(l), end='')
-        net_best.TestCorpus(test_loader, 'Test')
-        print('')
+# TODO comment for finetuning because then we dont want to see the test set <- instead of uncommenting add a parameter and an if statement
+    if not args.create_labels:
+
+        # test on (several) languages
+        for l in args.lang:
+            test_loader = LoadData(args.base_dir, args.test + '.' + l,
+                                args.test_labels + '.' + l,
+                                dim=args.dim, bsize=args.bsize,
+                                shuffle=False, quiet=True)
+            print('Ep best | Eval Test lang {:s}'.format(l), end='')
+            _, _, preds = net_best.TestCorpus(test_loader, 'Test')
+            print('')
+
+    else:
+        # save ground truth and labels predicted on train and dev set
+        for l in args.lang:
+            print("Language",l)
+            for part in ['train','dev']:
+                data_loader = LoadData(args.base_dir,f"{part}.enc." + l,
+                                    f"{part}.lbl." + l,
+                                    dim=args.dim, bsize=args.bsize,
+                                    shuffle=False, quiet=True)
+
+                actuals, preds = net_best.get_labels(data_loader)
+                # unsqueeze(1) changes tensor shape from (n) to (n,1)
+                merge = torch.cat((actuals.unsqueeze(1), preds.unsqueeze(1)), 1)
+                np.savetxt(f"preds-{part}-{l}.csv",merge.numpy().astype(int),delimiter=",")
+
+

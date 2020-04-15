@@ -12,8 +12,15 @@
 #
 # --------------------------------------------------------
 #
-# bash script to calculate sentence embeddings for the MLDoc corpus,
+# bash script to calculate sentence embeddings for the CLS corpus,
 # train and evaluate the classifier
+
+# read the first argument given in the terminal
+# if there is no argument, train and evaluate as usual (all pairs of languages)
+# if the argument is "tune_hyperparams", tune hyperparameters
+# if the argument is "create_labels", train on English training set and predict labels for training sets from other languages
+# (so that we can use these predictions as pseudolabels for example in Multifit)
+arg=${1:-"train_eval"}   
 
 if [ -z ${LASER+x} ] ; then
   echo "Please set the environment variable 'LASER'"
@@ -121,8 +128,7 @@ python3 cls.py --data_dir ${edir} --lang ${languages[@]} --bpe_codes ${bpe_codes
 
 echo -e "\nTraining CLS classifier (log files in ${edir})"
 
-hp_tuning=false
-if [ "$hp_tuning" = true ] ; then
+if [ "$arg" = tune_hyperparams ] ; then
 
   # CLS classifier parameters
   nb_cl=2
@@ -169,11 +175,46 @@ if [ "$hp_tuning" = true ] ; then
       done
     done
   done
-else
+
+elif [ "$arg" = create_labels ]; then
+  # CLS classifier parameters
+  nb_cl=2
+  N=10
+  lr=0.001
+  wd=0.0
+  nhid="10 8"
+  drop=0.2
+  seed=1
+  bsize=12
+
+  ltrn="en"
+  ldev=${ltrn}
+  lf="${edir}/cls.${ltrn}-${ldev}-create-labels.log"
+  echo "Creating labels (logs in ${lf})"
+
+  # if the if statement below is commented, if there is an existing file $lf, it will be overwritten
+  # if [ ! -f ${lf} ] ; then
+    python3 ${LASER}/source/sent_classif.py \
+      --gpu 0 --base-dir ${edir} \
+      --train train.enc.${ltrn} \
+      --train-labels train.lbl.${ltrn} \
+      --dev dev.enc.${ldev} \
+      --dev-labels dev.lbl.${ldev} \
+      --test test.enc \
+      --test-labels test.lbl \
+      --nb-classes ${nb_cl} \
+      --nhid ${nhid[@]} --dropout ${drop} --bsize ${bsize} \
+      --seed ${seed} --lr ${lr} --wdecay ${wd} --nepoch ${N} \
+      --lang ${languages[@]} \
+      --create_labels\
+      > ${lf}
+        
+  # fi
+elif [ "$arg" = train_eval ]; then 
 
   # CLS classifier parameters
   nb_cl=2
-  N=100
+  N=10
   lr=0.001
   wd=0.0
   nhid="10 8"
@@ -187,6 +228,7 @@ else
     lf="${edir}/cls.${ltrn}-${ldev}.log"
     echo " - train on ${ltrn}, dev on ${ldev}"
     echo "Starting ${lf}"
+    # if the if statement below is commented, if there is an existing file $lf, it will be overwritten
     # if [ ! -f ${lf} ] ; then
       python3 ${LASER}/source/sent_classif.py \
         --gpu 0 --base-dir ${edir} \
@@ -204,6 +246,7 @@ else
 
         
     # fi
+  
   done
 
   # # display results
@@ -221,6 +264,8 @@ else
     done
     echo ""
   done
+else
+    echo "Incorrect argument - Choose between tune_hyperparams and create_labels or no argument at all"
 fi
 
 
