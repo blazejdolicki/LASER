@@ -173,13 +173,13 @@ else
 
   # CLS classifier parameters
   nb_cl=2
-  N=500
+  N=100
   lr=0.001
   wd=0.0
-  nhid="256 64"
-  drop=0.3
+  nhid="10 8"
+  drop=0.2
   seed=1
-  bsize=18
+  bsize=12
 
   # for ltrn in "en" ; do
   for ltrn in ${languages[@]} ; do

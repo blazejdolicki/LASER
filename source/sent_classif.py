@@ -265,13 +265,13 @@ if 'net_best' in globals():
 
     if args.gpu >= 0:
         net_best = net_best.cuda()
-# TODO uncomment later, for now i dont want to see test set
-#     # test on (several) languages
-#     for l in args.lang:
-#         test_loader = LoadData(args.base_dir, args.test + '.' + l,
-#                                args.test_labels + '.' + l,
-#                                dim=args.dim, bsize=args.bsize,
-#                                shuffle=False, quiet=True)
-#         print('Ep best | Eval Test lang {:s}'.format(l), end='')
-#         net_best.TestCorpus(test_loader, 'Test')
-#         print('')
+# TODO comment for finetuning because then we dont want to see the test set
+    # test on (several) languages
+    for l in args.lang:
+        test_loader = LoadData(args.base_dir, args.test + '.' + l,
+                               args.test_labels + '.' + l,
+                               dim=args.dim, bsize=args.bsize,
+                               shuffle=False, quiet=True)
+        print('Ep best | Eval Test lang {:s}'.format(l), end='')
+        net_best.TestCorpus(test_loader, 'Test')
+        print('')
