@@ -144,7 +144,7 @@ class Net(nn.Module):
             all_predicted = torch.cat((all_predicted, predicted.cpu()), 0)
             all_y = torch.cat((all_y, Y.cpu()), 0)
 
-        return all_predicted, all_y
+        return all_y, all_predicted
 
 
 ################################################
@@ -303,19 +303,13 @@ if 'net_best' in globals():
     if args.gpu >= 0:
         net_best = net_best.cuda()
 # TODO comment for finetuning because then we dont want to see the test set <- instead of uncommenting add a parameter and an if statement
-    if not args.create_labels:
+# At first I thought we don't want to test when creating labels but later i decided that it's good to see the test metrics to make sure they are
+# as good as expected. Maybe we should delete create_labels later.
 
-        # test on (several) languages
-        for l in args.lang:
-            test_loader = LoadData(args.base_dir, args.test + '.' + l,
-                                args.test_labels + '.' + l,
-                                dim=args.dim, bsize=args.bsize,
-                                shuffle=False, quiet=True)
-            print('Ep best | Eval Test lang {:s}'.format(l), end='')
-            _, _, preds = net_best.TestCorpus(test_loader, 'Test')
-            print('')
+    # if not args.create_labels:
 
-    else:
+        
+    # else:
         # save ground truth and labels predicted on train and dev set
         for l in args.lang:
             print("Language",l)
@@ -329,5 +323,16 @@ if 'net_best' in globals():
                 # unsqueeze(1) changes tensor shape from (n) to (n,1)
                 merge = torch.cat((actuals.unsqueeze(1), preds.unsqueeze(1)), 1)
                 np.savetxt(f"preds-{part}-{l}.csv",merge.numpy().astype(int),delimiter=",")
+
+        # test on (several) languages
+        for l in args.lang:
+            test_loader = LoadData(args.base_dir, args.test + '.' + l,
+                                args.test_labels + '.' + l,
+                                dim=args.dim, bsize=args.bsize,
+                                shuffle=False, quiet=True)
+            print('Ep best | Eval Test lang {:s}'.format(l), end='')
+            _, _, preds = net_best.TestCorpus(test_loader, 'Test')
+            print('')
+
 
 

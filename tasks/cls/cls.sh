@@ -179,7 +179,7 @@ if [ "$arg" = tune_hyperparams ] ; then
 elif [ "$arg" = create_labels ]; then
   # CLS classifier parameters
   nb_cl=2
-  N=10
+  N=200
   lr=0.001
   wd=0.0
   nhid="10 8"
@@ -210,11 +210,26 @@ elif [ "$arg" = create_labels ]; then
       > ${lf}
         
   # fi
+  # # display results
+  echo -e "\nAccuracy matrix:"
+  echo -n "Train "
+  for l1 in ${languages[@]} ; do
+    printf "    %2s " ${l1}
+  done
+  echo ""
+
+  lf="${edir}/cls.${ltrn}-${ltrn}-create-labels.log"
+  echo -n " ${ltrn}:  "
+  for l2 in ${languages[@]} ; do
+    grep "Test lang ${l2}" $lf | sed -e 's/%//' | awk '{printf("  %5.2f", $10)}'
+  done
+  echo ""
+  
 elif [ "$arg" = train_eval ]; then 
 
   # CLS classifier parameters
   nb_cl=2
-  N=10
+  N=200
   lr=0.001
   wd=0.0
   nhid="10 8"
@@ -266,8 +281,10 @@ elif [ "$arg" = train_eval ]; then
   done
 else
     echo "Incorrect argument - Choose between tune_hyperparams and create_labels or no argument at all"
+    exit
 fi
 
-
-
-
+echo ""
+echo "End time:"
+TZ=CET date
+echo ""
