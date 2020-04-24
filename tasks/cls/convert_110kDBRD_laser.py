@@ -34,18 +34,18 @@ for part in ['unsup','test','train']:
         with open(f"{NEW_DIR}/train.txt","w") as f:
             for i in revs_df.index[:train_dev_split]:
                 label = revs_df.at[i,"labels"]
-                text = revs_df.at[i,"text"]
+                text = revs_df.at[i,"text"].replace("\n","")
                 f.write("{}\t{}\n".format(label,text))
 
         with open(f"{NEW_DIR}/dev.txt","w") as f:
             for i in revs_df.index[train_dev_split:]:
                 label = revs_df.at[i,"labels"]
-                text = revs_df.at[i,"text"]
+                text = revs_df.at[i,"text"].replace("\n","")
                 f.write("{}\t{}\n".format(label,text))
     # for test and unsupervised set
     else:
         with open(f"{NEW_DIR}/{part}.txt","w") as f:
             for i in revs_df.index:
                 label = revs_df.at[i,"labels"]
-                text = revs_df.at[i,"text"]
+                text = revs_df.at[i,"text"].replace("\n","")
                 f.write("{}\t{}\n".format(label,text))
