@@ -30,8 +30,8 @@ fi
 # general config
 mldir="data/cls-acl10-unprocessed"	# raw texts of MLdoc
 edir="embed"	# normalized texts and embeddings
-# languages=('en' 'de' 'fr' 'jp')
-languages=('en' 'de')
+languages=('en' 'nl')
+# languages=('en' 'de')
 # encoder
 model_dir="${LASER}/models"
 encoder="${model_dir}/bilstm.93langs.2018-12-26.pt"
@@ -132,16 +132,16 @@ if [ "$arg" = tune_hyperparams ] ; then
 
   # CLS classifier parameters
   nb_cl=2
-  Ns=(100 200 500)
-  lrs=(0.01 0.001)
+  Ns=(200)
+  lrs=(0.02 0.01 0.001)
   wd=0.0
-  nhids=("10 8" "256 64")
-  drops=(0.1 0.2 0.3)
+  nhids=("10 8" "50")
+  drops=(0.2)
   seed=1
-  bsizes=(12 18)
+  bsizes=(12)
 
-  for ltrn in "en" ; do
-  # TODO uncomment later
+  for ltrn in "en" "nl"; do
+  # uncomment to train on all languages instead of just English
   # for ltrn in ${languages[@]} ; do
     ldev=${ltrn}
     echo " - train on ${ltrn}, dev on ${ldev}"
@@ -153,7 +153,7 @@ if [ "$arg" = tune_hyperparams ] ; then
             for bsize in ${bsizes[@]} ; do
               lf="${edir}/cls.${ltrn}-${ldev}_N_${N}_lr_${lr}_nhid_${i}_drop_${drop}_bsize_${bsize}.log"
               echo "Starting ${lf}"
-              # TODO uncomment later
+              # comment to overwrite files
               # if [ ! -f ${lf} ] ; then
                 python3 ${LASER}/source/sent_classif.py \
                   --gpu 0 --base-dir ${edir} \
@@ -192,8 +192,8 @@ elif [ "$arg" = create_labels ]; then
   lf="${edir}/cls.${ltrn}-${ldev}-create-labels.log"
   echo "Creating labels (logs in ${lf})"
 
-  # if the if statement below is commented, if there is an existing file $lf, it will be overwritten
-  # if [ ! -f ${lf} ] ; then
+  # comment to overwrite files
+  if [ ! -f ${lf} ] ; then
     python3 ${LASER}/source/sent_classif.py \
       --gpu 0 --base-dir ${edir} \
       --train train.enc.${ltrn} \
@@ -209,7 +209,7 @@ elif [ "$arg" = create_labels ]; then
       --create_labels\
       > ${lf}
         
-  # fi
+  fi
   # # display results
   echo -e "\nAccuracy matrix:"
   echo -n "Train "

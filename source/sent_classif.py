@@ -311,18 +311,22 @@ if 'net_best' in globals():
         
     # else:
         # save ground truth and labels predicted on train and dev set
-        for l in args.lang:
-            print("Language",l)
-            for part in ['train','dev']:
-                data_loader = LoadData(args.base_dir,f"{part}.enc." + l,
-                                    f"{part}.lbl." + l,
-                                    dim=args.dim, bsize=args.bsize,
-                                    shuffle=False, quiet=True)
+        # for l in args.lang:
+        #     print("Language",l)
+        #     for part in ['train','dev']:
+        #         data_loader = LoadData(args.base_dir,f"{part}.enc." + l,
+        #                             f"{part}.lbl." + l,
+        #                             dim=args.dim, bsize=args.bsize,
+        #                             shuffle=False, quiet=True)
 
-                actuals, preds = net_best.get_labels(data_loader)
-                # unsqueeze(1) changes tensor shape from (n) to (n,1)
-                merge = torch.cat((actuals.unsqueeze(1), preds.unsqueeze(1)), 1)
-                np.savetxt(f"preds-{part}-{l}.csv",merge.numpy().astype(int),delimiter=",")
+        #         actuals, preds = net_best.get_labels(data_loader)
+        #         # unsqueeze(1) changes tensor shape from (n) to (n,1)
+        #         merge = torch.cat((actuals.unsqueeze(1), preds.unsqueeze(1)), 1)
+        #         # multifit uses "ja" instead of "jp"
+        #         if l=="jp":
+        #             np.savetxt(f"preds-{part}-ja.csv",merge.numpy().astype(int),delimiter=",")
+        #         else:
+        #             np.savetxt(f"preds-{part}-{l}.csv",merge.numpy().astype(int),delimiter=",")
 
         # test on (several) languages
         for l in args.lang:

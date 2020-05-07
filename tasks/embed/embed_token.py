@@ -105,9 +105,6 @@ class SentenceEncoder:
             if verbose:
                 print(' - transfer encoder to GPU')
             self.encoder.cuda()
-        # print("Print encoder")
-        # model = nn.Sequential(self.encoder,nn.Linear(512,44))
-        # print(self.encoder.lstm)
         self.sort_kind = sort_kind
 
     def _process_batch(self, batch):
@@ -117,10 +114,12 @@ class SentenceEncoder:
             tokens = tokens.cuda()
             lengths = lengths.cuda()
         self.encoder.eval()
-        embeddings = self.encoder(tokens, lengths)['sentemb']
+        # embeddings = self.encoder(tokens, lengths)['sentemb']
         # transpose back from (#states, #sentences, hidden state embedding size) to (#sentences, #states, hidden state embedding size)
-        # embeddings = self.encoder(tokens, lengths)['encoder_out'][0].transpose(1,0)
-        return embeddings.detach().cpu().numpy()
+        h_states = self.encoder(tokens, lengths)['encoder_out'][0].transpose(1,0)
+        print("h_states")
+        print(h_states.detach().cpu().numpy().shape)
+        return h_states.detach().cpu().numpy()
 
     def _tokenize(self, line):
         tokens = SPACE_NORMALIZER.sub(" ", line).strip().split()
@@ -165,19 +164,22 @@ class SentenceEncoder:
     def encode_sentences(self, sentences):
         indices = []
         results = []
+        first = True
+        seq_len = 0
         for batch, batch_indices in self._make_batches(sentences):
+            if first:
+                seq_len = batch.lengths[0].item()
+                first =False
+            print(batch.lengths[0])
             indices.extend(batch_indices)
-            # print("batch idxs")
-            # print(batch_indices)
             results.append(self._process_batch(batch))
-            # print('results shape')
-            # print(results[-1].shape)
-        # print("results len")
-        # print(len(results))
-        # print(np.vstack(results)[np.argsort(indices, kind=self.sort_kind)][0])
         # vstack stacks elements of array vertically
         # when training, sentences are sorted by length, so in the end we sort them back to return the embeddings in the same order as the sentences
         # were input
+        print("seq length",seq_len)
+        print("Results size",len(results))
+        for i in range(len(results)):
+            print("Length of {}th results element: {}".format(i,len(results[i])))
         return np.vstack(results)[np.argsort(indices, kind=self.sort_kind)]
 
 
@@ -191,7 +193,6 @@ class Encoder(nn.Module):
         self.num_layers = num_layers
         self.bidirectional = bidirectional
         self.hidden_size = hidden_size
-
         self.padding_idx = padding_idx
         self.embed_tokens = nn.Embedding(num_embeddings, embed_dim, padding_idx=self.padding_idx)
 
@@ -219,11 +220,6 @@ class Encoder(nn.Module):
 
         bsz, seqlen = src_tokens.size()
         
-        # print("Src tokens")
-        # print(src_tokens)
-        # print("Src lengths")
-        # print(src_lengths)
-
         # embed tokens
         x = self.embed_tokens(src_tokens)
 
@@ -258,14 +254,16 @@ class Encoder(nn.Module):
             final_cells = combine_bidir(final_cells)
 
         encoder_padding_mask = src_tokens.eq(self.padding_idx).t()
-        padding_mask = src_tokens.eq(self.padding_idx).t().unsqueeze(-1)
-        if padding_mask.any():
-            x = x.float().masked_fill_(padding_mask, float('-inf')).type_as(x)
+        # Set padded outputs to -inf so they are not selected by max-pooling TODO uncomment maybe later?
+        # padding_mask = src_tokens.eq(self.padding_idx).t().unsqueeze(-1)
+        # if padding_mask.any():
+        #     x = x.float().masked_fill_(padding_mask, float('-inf')).type_as(x)
 
         # Build the sentence embedding by max-pooling over the encoder outputs
         sentemb = x.max(dim=0)[0]
 
         return {
+            # 'hidden_states': packed_outs,
             'sentemb': sentemb,
             'encoder_out': (x, final_hiddens, final_cells),
             'encoder_padding_mask': encoder_padding_mask if encoder_padding_mask.any() else None
@@ -355,8 +353,8 @@ if __name__ == '__main__':
     parser.add_argument('-v', '--verbose', action='store_true',
                         help='Detailed output')
 
-    parser.add_argument('-o', '--output', required=True,
-                        help='Output sentence embeddings')
+    # parser.add_argument('-o', '--output', required=True,
+    #                     help='Output sentence embeddings')
     parser.add_argument('--buffer-size', type=int, default=10000,
                         help='Buffer size (sentences)')
     parser.add_argument('--max-tokens', type=int, default=12000,
@@ -375,34 +373,133 @@ if __name__ == '__main__':
 
     if args.verbose:
         print(' - Encoder: loading {}'.format(args.encoder))
+
+
+    all_tags = ["X","ADJ","ADP","ADV","AUX","CCONJ","DET","INTJ","NOUN","NUM","PART","PRON","PROPN","PUNCT","SCONJ","SYM","VERB",]
+   
+
+    split = "dev"
+    # open udpos data processed by XTREME, convert to file where each line is text of one example
+    # and another file where each line is a list of tags for this example
+    with open(f"{split}-nl.tsv") as f:
+        lines = f.read().strip("\n").split("\n")
+    sentences = []
+    tags = []
+    sentence = []
+    tag = []
+    max_len = 0
+    for line in lines:
+        if len(line)==0:
+            sentences.append(" ".join(sentence).replace(",,","„"))
+            tags.append(" ".join(tag))
+            sentence = []
+            if max_len<len(tag):
+                max_len = len(tag)
+            tag = []
+        else:
+            sent = line.split("\t")[0]
+            t = line.split("\t")[1]
+            sentence.append(sent)
+            tag.append(t)
+
+    with open(f"{split}.nl.txt","w") as f:
+        for sentence in sentences:
+            f.write(sentence+"\n")
+
+    with open(f"{split}.nl.lbl","w") as f:
+        for tag in tags:
+            f.write(tag+"\n")
+
     encoder = SentenceEncoder(args.encoder,
                               max_sentences=args.max_sentences,
                               max_tokens=args.max_tokens,
                               sort_kind='mergesort' if args.stable else 'quicksort',
                               cpu=args.cpu)
 
-    with tempfile.TemporaryDirectory() as tmpdir:
-        ifname = ''  # stdin will be used
-        if args.token_lang != '--':
-            tok_fname = os.path.join(tmpdir, 'tok')
-            Token(ifname,
-                  tok_fname,
-                  lang=args.token_lang,
-                  romanize=True if args.token_lang == 'el' else False,
-                  lower_case=True, gzip=False,
-                  verbose=args.verbose, over_write=False)
-            ifname = tok_fname
+    # 
+    ifname = f"{split}.nl.txt"
+    if args.token_lang != '--':
+        tok_fname = f"{split}.nl.tok"
+        Token(ifname,
+                tok_fname,
+                lang=args.token_lang,
+                romanize=True if args.token_lang == 'el' else False,
+                lower_case=True, gzip=False,
+                verbose=args.verbose, over_write=False)
+        ifname = tok_fname
 
-        if args.bpe_codes:
-            bpe_fname = os.path.join(tmpdir, 'bpe')
-            BPEfastApply(ifname,
-                         bpe_fname,
-                         args.bpe_codes,
-                         verbose=args.verbose, over_write=False)
-            ifname = bpe_fname
+    if args.bpe_codes:
+        bpe_fname = f"{split}.nl.bpe"
+        BPEfastApply(ifname,
+                        bpe_fname,
+                        args.bpe_codes,
+                        verbose=args.verbose, over_write=False)
+        ifname = bpe_fname
 
-        EncodeFile(encoder,
-                   ifname,
-                   args.output,
-                   verbose=args.verbose, over_write=False,
-                   buffer_size=args.buffer_size)
+    EncodeFile(encoder,
+                ifname,
+                f"{split}.nl.txt.enc",
+                verbose=args.verbose, over_write=False,
+                buffer_size=args.buffer_size)
+
+    '''
+        For all sentences, gets indices of the first token from BPE-encoded sentences.
+        Example:
+        - BPE encoded sentence
+        de afgelopen week twij@@ fel@@ de ze nog of ze wel moest mee@@ doen aan het nk .
+        - result
+        [0, 1, 2, 3, 6, 7, 8, 9, 10, 11, 12, 14, 15, 16, 17]
+        
+        This is necessary to properly align words with tags.
+    '''
+
+    with open(f"{split}.nl.bpe") as f:
+        lines = f.read().strip("\n").split("\n")
+    all_idxs = []
+    for line in lines:
+        line = line.split()
+
+        idxs = [i+1 for i,token in enumerate(line) if "@@" not in token and i+1!=len(line)]
+        # always the first subword in the sequence is the first subtoken of the first word 
+        idxs.insert(0,0)
+
+        # print(line)
+        # print(idxs)
+        all_idxs.append(idxs)
+    
+    # open labels in string format
+    with open("dev.nl.lbl") as f:
+        lines = f.read().strip("\n").split("\n")
+
+    '''
+        Prepare labels matrix. Subword tokens that are not the first word of the token
+        and padding tokens will be aligned with special X token which will be ignored by loss function.
+        Tags are converted to integers so that we can use them for training. X token has index 0.
+        Example (for 1 line):
+        - line in {split}-nl-lbl file
+        DET VERB NOUN VERB PRON ADV SCONJ PRON ADV AUX VERB ADP DET PROPN PUNCT
+        - idxs
+        [0, 1, 2, 3, 6, 7, 8, 9, 10, 11, 12, 14, 15, 16, 17]
+        - result
+        [ 6., 16.,  8., 16.,  0.,  0., 11.,  3., 14., 11.,  3.,  4., 16.,
+         0.,  2.,  6., 12., 13.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,
+         0.]
+
+        (DET has index 6, VERB has index 16 etc)
+
+
+    '''
+    # TODO hardcoded
+    num_examples = len(lines)
+
+    # get maximal sequence length
+    X = np.fromfile("dev.nl.txt.enc", dtype=np.float32, count=-1)  
+    # dim of hidden states is 1024
+    seq_len = X.shape[0]// (num_examples*1024)
+
+    print("Num examples: {} Max sequence length: {}".format(num_examples,seq_len))
+    labels = np.zeros((num_examples,seq_len))
+    for i,line in enumerate(lines):
+        tags = line.split()
+        labels[i][all_idxs[i]] = list(map(all_tags.index,tags))
+    labels.tofile(f"{split}.nl.lbl.enc")
