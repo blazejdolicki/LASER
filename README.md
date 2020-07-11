@@ -14,7 +14,7 @@ This is a fork of the original LASER [repository](https://github.com/facebookres
 >> pip transliterate==1.10.2
 >> pip jieba==0.39
 ```
-4. Following the [installation instructions](https://github.com/facebookresearch/LASER#installation) from the original repo.
+4. Follow the [installation instructions](https://github.com/facebookresearch/LASER#installation) from the original repo.
 
 ### Make predictions on CLS+
 1. Download 110k DBRD and preprocess it.
